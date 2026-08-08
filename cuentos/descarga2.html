@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preparando tu descarga...</title>
+
+    <script>
+        window.onload = function () {
+
+            const enlace = document.createElement("a");
+            enlace.href = "https://tonateno.github.io/naria/cuentos/La_Luna_de_Papel_FINAL_ES_L.pdf";
+            enlace.download = "El_Bosque_y_el_Cristal.pdf";
+            document.body.appendChild(enlace);
+            enlace.click();
+            document.body.removeChild(enlace);
+
+        };
+    </script>
+
+    <style>
+        body{
+            font-family:Arial,sans-serif;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            text-align:center;
+            background:#f7f7f7;
+        }
+        .contenedor{
+            max-width:500px;
+        }
+        a{
+            color:#0066cc;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+    <h2>📖 Gracias por tu compra</h2>
+
+    <p>Tu descarga debería comenzar automáticamente.</p>
+
+    <p>Si no comienza en unos segundos, haz clic aquí:</p>
+
+    <p>
+        <a href="https://tonateno.github.io/naria/cuentos/La_Luna_de_Papel_FINAL_ES_L.pdf"
+           download>
+           Descargar PDF
+        </a>
+    </p>
+
+</div>
+
+</body>
+</html>

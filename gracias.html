@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Gracias por tu compra! - Naria Editores</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="shadow-theatre-body" style="justify-content: space-between;">
+    <header class="main-header container">
+        <div class="logo-area">
+            <div class="naria-logo-geo">
+                <span class="letter-n">N</span>
+                <span class="letter-a">A</span>
+                <span class="letter-r">R</span>
+                <span class="letter-i">I</span>
+                <span class="letter-a-2">A</span>
+            </div>
+            <span class="site-subtitle">Editores</span>
+        </div>
+    </header>
+
+    <main class="container" style="text-align: center; padding: 4rem 1rem;">
+        <h2 style="font-family: var(--font-heading); color: #4ecdc4; margin-bottom: 1rem; font-size: 2.2rem;">¡Pago completado con éxito!</h2>
+        
+        <!-- Mensaje actualizado para notificar la descarga automática -->
+        <p id="mensaje-descarga" style="font-size: 1.1rem; margin-bottom: 2.5rem; color: var(--text-muted);">
+            Gracias por adquirir una historia de Naria. Tu descarga iniciará automáticamente en unos segundos. <br>Si no ocurre nada, haz clic en el botón de abajo.
+        </p>
+        
+        <!-- Botón de respaldo -->
+        <a id="btn-descarga" href="#" download style="font-family: var(--font-heading); background: var(--accent-glow); color: #0b0b0b; padding: 0.9rem 2rem; text-decoration: none; border-radius: 50px; font-weight: 700; display: inline-block; transition: opacity 0.3s ease;">
+            Descargar tu Cuento (ZIP)
+        </a>
+    </main>
+
+    <footer class="main-footer container">
+        <p>&copy; 2026 Naria Editores. Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- Script para autodescarga e inyección dinámica -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // 1. Leer los parámetros de la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const cuento = urlParams.get('cuento');
+            
+            const btnDescarga = document.getElementById('btn-descarga');
+            const msgTexto = document.getElementById('mensaje-descarga');
+
+            let archivoUrl = '';
+
+            // 2. Asignar el ZIP correspondiente
+            if (cuento === 'bosque') {
+                archivoUrl = 'assets/descargas/El_Bosque_y_el_Cristal_FINAL_ES_L.zip';
+                btnDescarga.textContent = 'Descargar El Bosque y el Cristal manual';
+            } else if (cuento === 'luna') {
+                archivoUrl = 'assets/descargas/La_Luna_de_Papel_FINAL_ES_L.zip';
+                btnDescarga.textContent = 'Descargar La Luna de Papel manual';
+            }
+
+            // 3. Ejecutar descarga automática si se encontró el cuento
+            if (archivoUrl !== '') {
+                btnDescarga.href = archivoUrl;
+                
+                // Esperamos medio segundo para dar tiempo a que la página renderice
+                // y luego simulamos un clic en el botón
+                setTimeout(() => {
+                    btnDescarga.click();
+                }, 800);
+                
+            } else {
+                // Manejo de error si alguien entra a la página sin un parámetro válido
+                btnDescarga.style.display = 'none';
+                msgTexto.textContent = 'El enlace ha expirado o no se encuentra el cuento solicitado. Por favor, contacta con soporte si acabas de realizar tu pago.';
+                msgTexto.style.color = '#ff6b6b';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+/* ==========================================================================
+   Naria: Estilos - Teatro de Sombras (Mobile-First)
+   ========================================================================== */
+
+:root {
+    --bg-deep-black: #0b0b0b;
+    --card-bg: #151515;
+    --text-main: #e0e0e0;
+    --text-muted: #aaaaaa;
+    --accent-glow: #d18e36;
+    --border-color: #2a2a2a;
+    
+    --font-main: 'Quicksand', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+.shadow-theatre-body {
+    font-family: var(--font-main);
+    background-color: var(--bg-deep-black);
+    color: var(--text-main);
+    line-height: 1.7;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding-top: 60px;
+    padding-bottom: 60px;
+}
+
+.container {
+    width: 90%;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.container-fluid {
+    width: 100%;
+}
+
+/* --- Marco de Proscenio (Teatro de Sombras) --- */
+.proscenium-frame {
+    position: fixed;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    background-color: var(--bg-deep-black);
+    z-index: 1000;
+    background-image:
+        linear-gradient(45deg, var(--accent-glow) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--accent-glow) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--accent-glow) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--accent-glow) 75%);
+    background-size: 20px 20px;
+    opacity: 0.85;
+}
+
+.proscenium-frame.top { top: 0; border-bottom: 2px solid var(--accent-glow); }
+.proscenium-frame.bottom { bottom: 0; border-top: 2px solid var(--accent-glow); }
+
+/* --- Header --- */
+.main-header {
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+@media(min-width: 768px) {
+    .main-header {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+}
+
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.logo-link {
+    display: inline-block;
+    line-height: 0;
+}
+
+.logo-img {
+    height: 42px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    border-radius: 4px;
+}
+
+.site-subtitle {
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    letter-spacing: 0.3em;
+    color: var(--accent-glow);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.main-nav ul {
+    list-style: none;
+    display: flex;
+    gap: 1.5rem;
+}
+
+.main-nav a {
+    font-family: var(--font-main);
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.main-nav a:hover {
+    color: var(--accent-glow);
+}
+
+/* --- Hero Section con la imagen header.jpg y título arriba (cielo oscuro) --- */
+.hero-shadow {
+    position: relative;
+    background-image: url('../../images/header.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    padding: 4rem 1rem 12rem 1rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.hero-shadow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background: linear-gradient(to bottom, rgba(11,11,11,0.85) 0%, rgba(11,11,11,0) 100%);
+    z-index: 1;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+}
+
+.hero-shadow h1 {
+    font-family: var(--font-main);
+    font-size: clamp(2.2rem, 4.5vw, 3.5rem);
+    color: #ffffff;
+    font-weight: 700;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+}
+
+/* --- Sección de Descripción Editorial (Debajo de la imagen) --- */
+.intro-description-section {
+    padding: 3rem 1rem;
+    text-align: center;
+    max-width: 800px;
+    border-bottom: 1px solid var(--border-color);
+    margin: 0 auto;
+}
+
+.intro-description {
+    font-family: var(--font-main);
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+}
+
+/* --- Catálogo de Cuentos --- */
+.catalog-section {
+    padding: 4rem 0 2rem 0;
+}
+
+.catalog-section h2 {
+    font-family: var(--font-main);
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 3rem;
+    color: #ffffff;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+}
+
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2.5rem;
+}
+
+.book-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.book-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent-glow);
+}
+
+.book-cover-wrapper {
+    width: 100%;
+    max-height: 350px;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.book-cover {
+    width: 100%;
+    height: auto;
+    max-height: 350px;
+    object-fit: contain;
+    display: block;
+    transition: transform 0.5s ease;
+}
+
+.book-card:hover .book-cover {
+    transform: scale(1.03);
+}
+
+.book-details {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.book-details h3 {
+    font-family: var(--font-main);
+    font-size: 1.4rem;
+    margin-bottom: 0.3rem;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.book-author {
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    color: var(--accent-glow);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.book-synopsis {
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+}
+
+.book-price {
+    font-family: var(--font-main);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+}
+
+.paypal-button-wrapper {
+    margin-top: auto;
+}
+
+/* --- Footer --- */
+.main-footer {
+    text-align: center;
+    padding: 3rem 0 1rem;
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-color);
+    margin-top: 4rem;
+    font-weight: 600;
+}

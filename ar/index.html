@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="robots" content="noindex">
+<title>El Reino de las Raíces · Realidad aumentada</title>
+<style>
+  :root{--bg:#0d0705;--ink:#fff3e6;--mut:#d9b99a;--acc:#ff8a1f}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0;overflow:hidden}
+  .screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px 20px;text-align:center;
+          background:radial-gradient(120% 90% at 50% 20%,#4a1d08 0%,#1a0a05 55%,#0d0705 100%)}
+  .screen h1{margin:0;font-size:26px;line-height:1.15}
+  .screen p{margin:0;max-width:34ch;color:var(--mut)}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--acc)}
+  .btn{appearance:none;border:0;border-radius:999px;background:var(--acc);color:#1a0a05;font:inherit;font-weight:700;padding:14px 28px;cursor:pointer}
+  .btn.ghost{background:rgba(26,10,5,.9);color:var(--ink);border:1.5px solid var(--acc);padding:10px 20px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  .small{font-size:13px}
+  .hidden{display:none!important}
+  #hint{position:fixed;left:0;right:0;bottom:calc(28px + env(safe-area-inset-bottom));z-index:10;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 20px;text-align:center;pointer-events:none}
+  #hint .pill{background:rgba(26,10,5,.88);border:1px solid rgba(255,138,31,.65);color:var(--ink);font-weight:600;border-radius:999px;padding:10px 20px;backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  #frame{position:fixed;left:50%;top:44%;width:min(78vw,520px);aspect-ratio:3/2;transform:translate(-50%,-50%);z-index:9;border:2px dashed rgba(255,170,90,.75);border-radius:10px;pointer-events:none;animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  #caption{position:fixed;left:50%;top:40%;z-index:11;max-width:min(78vw,300px);padding:11px 18px;border-radius:18px;text-align:center;font-weight:700;line-height:1.25;color:var(--ink);
+           background:linear-gradient(180deg,#4a1d08 0%,#1a0a05 100%);border:1.5px solid var(--acc);box-shadow:0 8px 22px rgba(0,0,0,.55),0 0 18px rgba(255,138,31,.25);
+           opacity:0;transform:translate(-50%,-100%) scale(.85);transform-origin:50% 100%;transition:opacity .3s,transform .35s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
+  #caption.on{opacity:1;transform:translate(-50%,-100%) scale(1)}
+  #caption:after{content:"";position:absolute;left:50%;bottom:-9px;width:14px;height:14px;background:#1a0a05;border:1.5px solid var(--acc);border-top:0;border-left:0;transform:translateX(-50%) rotate(45deg)}
+  #again{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:12}
+  .spin{width:34px;height:34px;border-radius:50%;border:4px solid rgba(255,243,230,.2);border-top-color:var(--acc);animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  a-scene{position:absolute;inset:0}
+  .a-enter-vr,.a-orientation-modal{display:none!important}
+</style>
+<script src="lib/aframe.min.js"></script>
+<script src="lib/mindar-image-aframe.prod.js"></script>
+</head>
+<body>
+
+<div id="start" class="screen">
+  <span class="eyebrow">Realidad aumentada</span>
+  <h1>El Reino<br>de las Raíces</h1>
+  <p>Apunta la cámara de tu celular a la portada del libro y descubre quién vive en las raíces.</p>
+  <button id="go" class="btn">Activar cámara</button>
+  <p class="small">Te pediremos permiso para usar la cámara. No se graba ni se envía nada.<br>Si abriste este enlace desde Instagram o WhatsApp, ábrelo en Safari o Chrome.</p>
+</div>
+
+<div id="loading" class="screen hidden"><div class="spin"></div><p>Preparando la magia…</p></div>
+
+<div id="error" class="screen hidden">
+  <h1>No pudimos usar la cámara</h1>
+  <p id="errtxt">Revisa que hayas dado permiso a la cámara y que estés usando Safari o Chrome.</p>
+  <button class="btn" onclick="location.reload()">Intentar de nuevo</button>
+</div>
+
+<div id="frame" class="hidden"></div>
+<div id="hint" class="hidden"><div class="pill" id="hinttxt">Apunta la cámara a la portada del libro</div></div>
+<div id="caption">¡Hola, soy Ayenyens!</div>
+<button id="again" class="btn ghost hidden">↻ Ver otra vez</button>
+
+<div id="stage">
+  <a-scene id="scene"
+    mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; maxTrack: 1; warmupTolerance: 4; missTolerance: 12"
+    color-space="sRGB" renderer="colorManagement: true; alpha: true" embedded
+    vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <img id="t-cover" src="assets/cover.jpg">
+      <img id="t-int" src="assets/interior.jpg">
+      <img id="p-front" src="assets/front.png">
+      <img id="p-ball" src="assets/ball.png">
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
+
+    <a-entity id="book" mindar-image-target="targetIndex: 0" naria-show>
+      <!-- página interior, debajo de la tapa -->
+      <a-plane id="page" width="1" height="0.6667" position="0 0 0.001" material="shader: flat; src: #t-int"></a-plane>
+      <!-- tapa con bisagra en el borde izquierdo -->
+      <a-entity id="hinge" position="-0.5 0 0.004">
+        <a-plane width="1" height="0.6667" position="0.5 0 0" material="shader: flat; src: #t-cover"></a-plane>
+        <a-plane width="1" height="0.6667" position="0.5 0 -0.0005" rotation="0 180 0" material="shader: flat; color: #1a0d08"></a-plane>
+      </a-entity>
+      <!-- personaje -->
+      <a-entity id="actor" position="0 -0.15 0.01">
+        <a-plane id="shadow" width="0.3" height="0.1" position="0 0 -0.004" material="shader: flat; color: #000; transparent: true; opacity: 0.35"></a-plane>
+        <a-plane id="spr" width="0.2" height="0.3" material="shader: flat; transparent: true; alphaTest: 0.02; side: double"></a-plane>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+</div>
+
+<script>
+(function(){
+  // ---------- utilidades de animación ----------
+  var clamp=function(x,a,b){return Math.min(b,Math.max(a,x))};
+  var lerp=function(a,b,t){return a+(b-a)*t};
+  var seg=function(t,a,b){return clamp((t-a)/(b-a),0,1)};
+  var easeInOutSine=function(x){return -(Math.cos(Math.PI*x)-1)/2};
+  var easeInOut=function(x){return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+  var easeOutBack=function(x){var c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+  var easeOut=function(x){return 1-Math.pow(1-x,3)};
+  var easeIn=function(x){return x*x*x};
+  var DEG=Math.PI/180, PH=2/3; // la portada mide 1 de ancho y 2/3 de alto
+
+  // Camino sobre la raíz de la ilustración (u: izquierda→derecha, v: arriba→abajo, 0..1)
+  var PATH_UV=[[0.275,0.691],[0.392,0.688],[0.483,0.663],[0.55,0.613],[0.633,0.5625],[0.717,0.519],[0.80,0.485]];
+  var PATH=(function(){
+    var P=PATH_UV.map(function(p){return {x:p[0]-0.5,y:(0.5-p[1])*PH}});
+    var cr=function(a,b,c,d,t){return 0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t)};
+    var pts=[];
+    for(var i=0;i<P.length-1;i++){
+      var a=P[Math.max(0,i-1)],b=P[i],c=P[i+1],d=P[Math.min(P.length-1,i+2)];
+      for(var k=0;k<30;k++){var t=k/30;pts.push({x:cr(a.x,b.x,c.x,d.x,t),y:cr(a.y,b.y,c.y,d.y,t)})}
+    }
+    pts.push(P[P.length-1]);
+    var L=0;pts[0].s=0;
+    for(var j=1;j<pts.length;j++){L+=Math.hypot(pts[j].x-pts[j-1].x,pts[j].y-pts[j-1].y);pts[j].s=L}
+    return {pts:pts,L:L};
+  })();
+  function pathPoint(f){
+    f=clamp(f,0,1);var target=f*PATH.L,pts=PATH.pts,lo=0,hi=pts.length-1;
+    while(hi-lo>1){var mid=(lo+hi)>>1;if(pts[mid].s<target)lo=mid;else hi=mid}
+    var a=pts[lo],b=pts[hi],k=(target-a.s)/((b.s-a.s)||1);
+    return {x:lerp(a.x,b.x,k),y:lerp(a.y,b.y,k)};
+  }
+  function pathAt(f){
+    var p=pathPoint(f),q=pathPoint(f-0.02),r=pathPoint(f+0.02),tx=r.x-q.x,ty=r.y-q.y,l=Math.hypot(tx,ty)||1;
+    return {x:p.x,y:p.y,tx:tx/l,ty:ty/l};
+  }
+
+  var R0=0.062;                 // radio de la bola (contenido) en unidades de la portada
+  var BALL_PAD=1.39;            // la imagen de la bola trae margen para el resplandor
+  var FRONT_H=0.50, FRONT_PADB=44/462;
+  var POSE={front:{h:FRONT_H,id:"p-front"},ball:{h:2*R0*BALL_PAD,id:"p-ball"}};
+  var ROLL_TURN=function(p){return -4*Math.log(1-0.25*p)}; // giro acumulado (la bola se achica 25% al subir)
+
+  AFRAME.registerComponent("naria-show",{
+    init:function(){
+      var self=this;
+      this.t=0; this.found=false; this.pose=null;
+      this.hinge=document.getElementById("hinge");
+      this.actor=document.getElementById("actor");
+      this.spr=document.getElementById("spr");
+      this.shadow=document.getElementById("shadow");
+      this.caption=document.getElementById("caption");
+      this.el.addEventListener("targetFound",function(){self.found=true;UI.found()});
+      this.el.addEventListener("targetLost",function(){self.found=false;UI.lost()});
+      window.NARIA_RESTART=function(){self.t=0;self.pose=null};
+      var cv=document.createElement("canvas");cv.width=128;cv.height=64;var g=cv.getContext("2d");
+      g.translate(64,32);g.scale(1,0.5);var gr=g.createRadialGradient(0,0,2,0,0,62);
+      gr.addColorStop(0,"rgba(0,0,0,0.8)");gr.addColorStop(0.55,"rgba(0,0,0,0.35)");gr.addColorStop(1,"rgba(0,0,0,0)");
+      g.fillStyle=gr;g.beginPath();g.arc(0,0,62,0,Math.PI*2);g.fill();
+      this.shadow.setAttribute("material",{shader:"flat",src:cv.toDataURL(),transparent:true,depthWrite:false,color:"#000"});
+    },
+    setPose:function(name){
+      if(this.pose===name) return; this.pose=name;
+      var p=POSE[name], img=document.getElementById(p.id), ar=(img.naturalWidth||1)/(img.naturalHeight||1);
+      this.spr.setAttribute("material","src","#"+p.id);
+      this.spr.setAttribute("height",p.h);
+      this.spr.setAttribute("width",p.h*ar);
+      this.cur={h:p.h,ar:ar};
+    },
+    placeCaption:function(on,c){
+      var cap=this.caption; cap.classList.toggle("on",on);
+      if(!on) return;
+      var o=this.spr.object3D; this.el.object3D.updateMatrixWorld(true);
+      var v=new AFRAME.THREE.Vector3(0,c.h*0.46,0); o.localToWorld(v);
+      var sc=this.el.sceneEl, cam=sc.camera; if(!cam||!sc.canvas) return;
+      v.project(cam);
+      var r=sc.canvas.getBoundingClientRect();
+      var x=r.left+(v.x*0.5+0.5)*r.width, y=r.top+(-v.y*0.5+0.5)*r.height;
+      x=clamp(x,110,window.innerWidth-110); y=clamp(y,90,window.innerHeight-20);
+      cap.style.left=x+"px"; cap.style.top=(y-6)+"px";
+    },
+    tick:function(time,dt){
+      if(!this.found) return;
+      this.t+=Math.min(dt,100)/1000;
+      this.apply(this.t);
+    },
+    apply:function(t){
+      // tapa del libro
+      this.hinge.object3D.rotation.y=(-168*easeInOut(seg(t,0.6,2.1)))*DEG;
+
+      var st=pathAt(0), en=pathAt(1);
+      var pose="front", vis=true, s=1, rz=0, z=0.05, cx=st.x, cy=st.y, shw=0, shAng=0, base=1;
+      var ballCenter=false;
+      if(t<1.5){ vis=false }
+      else if(t<2.4){                       // sale del libro
+        var k=seg(t,1.5,2.4); s=Math.max(0.001,easeOutBack(k)); z=lerp(0.0,0.07,easeOut(k));
+      } else if(t<3.9){                     // saluda
+        var j=t-2.4; z=0.07; rz=6*Math.sin(j*8)*DEG; cy=st.y+0.008*Math.abs(Math.sin(j*5));
+      } else if(t<4.15){                    // se encoge para enrollarse
+        z=0.07; s=lerp(1,0.3,easeIn(seg(t,3.9,4.15))); rz=lerp(0,-25,seg(t,3.9,4.15))*DEG;
+      } else if(t<9.4){                     // rueda por la raíz
+        pose="ball"; ballCenter=true; z=0.06;
+        var p=0, pop=1;
+        if(t<4.45){ pop=lerp(0.5,1,easeOutBack(seg(t,4.15,4.45))) }
+        else { p=easeInOutSine(seg(t,4.45,9.4)) }
+        var pa=pathAt(p), rs=(1-0.25*p);
+        s=pop*rs; var r=R0*s;
+        cx=pa.x-pa.ty*r; cy=pa.y+pa.tx*r;   // la bola apoyada sobre la raíz
+        rz=-(PATH.L/R0)*ROLL_TURN(p);
+        shw=2*r; shAng=Math.atan2(pa.ty,pa.tx); this._contact={x:pa.x,y:pa.y};
+      } else if(t<9.65){                    // se detiene y se encoge
+        pose="ball"; ballCenter=true; z=0.06;
+        var k2=seg(t,9.4,9.65), rs2=0.75, sc=lerp(1,0.35,easeIn(k2)), r2=R0*rs2*sc, pa2=pathAt(1);
+        s=rs2*sc; cx=pa2.x-pa2.ty*r2; cy=pa2.y+pa2.tx*r2; rz=-(PATH.L/R0)*ROLL_TURN(1);
+        shw=2*r2; shAng=Math.atan2(pa2.ty,pa2.tx); this._contact={x:pa2.x,y:pa2.y};
+      } else {                              // se desenrolla y saluda al final del camino
+        var k3=seg(t,9.65,10.15), j2=t-10.15; base=0.7; z=0.07;
+        s=lerp(0.4,1,easeOutBack(k3)); cx=en.x; cy=en.y+(j2>0?0.004*Math.abs(Math.sin(j2*3)):0);
+        rz=(j2>0?3*Math.sin(j2*2.2):0)*DEG;
+      }
+      this.setPose(pose);
+      var c=this.cur, sc2=s*(pose==="front"?base:1);
+      this.actor.object3D.position.set(0,0,z);
+      if(ballCenter){
+        this.spr.object3D.position.set(cx,cy,0);
+        var cont=this._contact; this.shadow.object3D.position.set(cont.x,cont.y+0.003,-0.004);
+      } else {
+        // la imagen trae margen: se apoya el cuerpo en el suelo, no el borde de la imagen
+        this.spr.object3D.position.set(cx,cy+c.h*sc2/2-FRONT_PADB*c.h*sc2,0);
+        shw=0.42*sc2; shAng=0; this.shadow.object3D.position.set(cx,cy+0.003,-0.004);
+      }
+      this.spr.object3D.rotation.set(0,0,rz);
+      this.spr.object3D.scale.set(sc2,sc2,1);
+      this.spr.object3D.visible=vis; this.shadow.object3D.visible=vis;
+      this.shadow.object3D.rotation.set(0,0,shAng);
+      this.shadow.object3D.scale.set(Math.max(shw,0.001)/0.3,Math.max(sc2,0.2),1);
+      var m=this.shadow.getObject3D("mesh"); if(m&&m.material) m.material.opacity=0.38*clamp(sc2,0,1);
+      // letrero
+      this.placeCaption(t>2.5&&t<5.6&&vis,c);
+      if(t>10.6) UI.done();
+    }
+  });
+
+  // ---------- interfaz ----------
+  var $=function(i){return document.getElementById(i)};
+  var UI={
+    found:function(){$("hint").classList.add("hidden");$("frame").classList.add("hidden")},
+    lost:function(){if(started){$("hinttxt").textContent="Vuelve a apuntar a la portada";$("hint").classList.remove("hidden");$("frame").classList.remove("hidden")}},
+    done:function(){$("again").classList.remove("hidden")}
+  };
+  var started=false;
+  var scene=$("scene");
+  function fail(msg){$("loading").classList.add("hidden");$("start").classList.add("hidden");if(msg)$("errtxt").textContent=msg;$("error").classList.remove("hidden")}
+  scene.addEventListener("arReady",function(){
+    $("loading").classList.add("hidden");
+    $("hinttxt").textContent="Apunta la cámara a la portada del libro";
+    $("hint").classList.remove("hidden");$("frame").classList.remove("hidden");started=true;
+  });
+  scene.addEventListener("arError",function(){fail()});
+  $("go").addEventListener("click",function(){
+    $("start").classList.add("hidden");$("loading").classList.remove("hidden");
+    var sys=scene.systems["mindar-image-system"];
+    var run=function(){ try{ var p=sys.start(); if(p&&p.catch) p.catch(function(){fail()}); }catch(e){fail()} };
+    if(scene.hasLoaded) run(); else scene.addEventListener("loaded",run);
+  });
+  $("again").addEventListener("click",function(){$("again").classList.add("hidden");window.NARIA_RESTART&&window.NARIA_RESTART()});
+})();
+</script>
+</body>
+</html>

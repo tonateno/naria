@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="robots" content="noindex">
+<title>El Reino de las Raíces · Realidad aumentada</title>
+<style>
+  :root{--bg:#0d0705;--ink:#fff3e6;--mut:#d9b99a;--acc:#ff8a1f}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0;overflow:hidden}
+  .screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px 20px;text-align:center;
+          background:radial-gradient(120% 90% at 50% 20%,#4a1d08 0%,#1a0a05 55%,#0d0705 100%)}
+  .screen h1{margin:0;font-size:26px;line-height:1.15}
+  .screen p{margin:0;max-width:34ch;color:var(--mut)}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--acc)}
+  .btn{appearance:none;border:0;border-radius:999px;background:var(--acc);color:#1a0a05;font:inherit;font-weight:700;padding:14px 28px;cursor:pointer}
+  .btn.ghost{background:rgba(26,10,5,.9);color:var(--ink);border:1.5px solid var(--acc);padding:10px 20px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  .small{font-size:13px}
+  .hidden{display:none!important}
+  #hint{position:fixed;left:0;right:0;bottom:calc(28px + env(safe-area-inset-bottom));z-index:10;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 20px;text-align:center;pointer-events:none}
+  #hint .pill{background:rgba(26,10,5,.88);border:1px solid rgba(255,138,31,.65);color:var(--ink);font-weight:600;border-radius:999px;padding:10px 20px;backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  #frame{position:fixed;left:50%;top:44%;width:min(86vw,640px);aspect-ratio:16/9;transform:translate(-50%,-50%);z-index:9;border:2px dashed rgba(255,170,90,.75);border-radius:10px;pointer-events:none;animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  #again{position:fixed;left:50%;top:80%;transform:translate(-50%,0);z-index:12;white-space:nowrap}
+  .spin{width:34px;height:34px;border-radius:50%;border:4px solid rgba(255,243,230,.2);border-top-color:var(--acc);animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  a-scene{position:absolute;inset:0}
+  .a-enter-vr,.a-orientation-modal{display:none!important}
+  #tv{position:fixed;left:-9999px;top:0;width:8px;height:8px;opacity:0;pointer-events:none}
+</style>
+<script src="lib/aframe.min.js"></script>
+<script src="lib/mindar-image-aframe.prod.js"></script>
+</head>
+<body>
+
+<div id="start" class="screen">
+  <span class="eyebrow">Realidad aumentada</span>
+  <h1>El Reino<br>de las Raíces</h1>
+  <p>Apunta la cámara de tu celular al libro que aparece en el video y mira lo que sale de sus páginas.</p>
+  <button id="go" class="btn">Activar cámara</button>
+  <p class="small">Te pediremos permiso para usar la cámara. No se graba ni se envía nada.<br>Si abriste este enlace desde Instagram o WhatsApp, ábrelo en Safari o Chrome.</p>
+</div>
+
+<div id="loading" class="screen hidden"><div class="spin"></div><p>Preparando la magia…</p></div>
+
+<div id="error" class="screen hidden">
+  <h1>No pudimos usar la cámara</h1>
+  <p id="errtxt">Revisa que hayas dado permiso a la cámara y que estés usando Safari o Chrome.</p>
+  <button class="btn" onclick="location.reload()">Intentar de nuevo</button>
+</div>
+
+<div id="frame" class="hidden"></div>
+<div id="hint" class="hidden"><div class="pill" id="hinttxt">Apunta la cámara a la pantalla donde está el libro</div></div>
+<button id="again" class="btn ghost hidden">↻ Ver otra vez</button>
+
+<video id="tv" muted loop playsinline preload="auto" webkit-playsinline>
+  <source src="assets/tree_mask.mp4" type="video/mp4">
+  <source src="assets/tree_mask.webm" type="video/webm">
+</video>
+
+<div id="stage">
+  <a-scene id="scene"
+    mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; maxTrack: 1; warmupTolerance: 4; missTolerance: 15"
+    color-space="sRGB" renderer="colorManagement: true; alpha: true" embedded
+    vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
+    <a-entity id="book" mindar-image-target="targetIndex: 0" naria-show></a-entity>
+  </a-scene>
+</div>
+
+<script>
+(function(){
+  var THREE=AFRAME.THREE;
+  var clamp=function(x,a,b){return Math.min(b,Math.max(a,x))};
+  var lerp=function(a,b,t){return a+(b-a)*t};
+  var seg=function(t,a,b){return clamp((t-a)/(b-a),0,1)};
+  var eIO=function(x){return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+  var eIOs=function(x){return x*x*(3-2*x)};
+  var eOut=function(x){return 1-Math.pow(1-x,3)};
+  var eBack=function(x){var c1=1.5,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+  var PI=Math.PI;
+
+  // ---------------- geometría: el libro acostado tal como se ve en el video ----------------
+  var FW=1920, FH=1080;                                   // tamaño del cuadro del video (imagen de reconocimiento)
+  var fx=function(x){return (x-10)*1920/2731}, fy=function(y){return y*1080/1536};
+  var QUAD=[[1135,1056],[1616,1056],[1744,1266],[1007,1266]].map(function(p){return [fx(p[0]),fy(p[1])]});
+  var PW=1.5, PD=1.0, T=0.045, KV=1.25;                   // ancho, fondo, grosor del libro; factor vertical
+  function solveH(src,dst){
+    var A=[],b=[],i;
+    for(i=0;i<4;i++){
+      var x=src[i][0],y=src[i][1],u=dst[i][0],v=dst[i][1];
+      A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);
+      A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v);
+    }
+    var n=8;
+    for(var c=0;c<n;c++){
+      var p=c;for(i=c+1;i<n;i++)if(Math.abs(A[i][c])>Math.abs(A[p][c]))p=i;
+      var tmp=A[c];A[c]=A[p];A[p]=tmp;var tb=b[c];b[c]=b[p];b[p]=tb;
+      for(i=c+1;i<n;i++){var f=A[i][c]/A[c][c];for(var k=c;k<n;k++)A[i][k]-=f*A[c][k];b[i]-=f*b[c]}
+    }
+    var h=new Array(n);
+    for(i=n-1;i>=0;i--){var s=b[i];for(var k2=i+1;k2<n;k2++)s-=A[i][k2]*h[k2];h[i]=s/A[i][i]}
+    return h;
+  }
+  var H=solveH([[0,0],[PW,0],[PW,PD],[0,PD]],QUAD);
+  function pxy(u,v){var z=H[6]*u+H[7]*v+1;return [(H[0]*u+H[1]*v+H[2])/z,(H[3]*u+H[4]*v+H[5])/z]}
+  function hscale(v){return (pxy(PW,v)[0]-pxy(0,v)[0])/PW}   // píxeles por unidad a esa profundidad
+  function proj(u,v,w){
+    var p=pxy(u,v); var y=p[1]-w*KV*hscale(v);
+    return [p[0]/FW-0.5,(FH/2-y)/FW];
+  }
+
+  // ---------------- utilidades de malla ----------------
+  var loader=new THREE.TextureLoader();
+  function tex(url,srgb){
+    var t=loader.load(url);
+    if(srgb!==false) t.colorSpace=THREE.SRGBColorSpace;
+    t.anisotropy=4; t.generateMipmaps=true; t.minFilter=THREE.LinearMipmapLinearFilter;
+    return t;
+  }
+  function mat(o){
+    var m=new THREE.MeshBasicMaterial(Object.assign({transparent:true,depthTest:false,depthWrite:false,side:THREE.DoubleSide,toneMapped:false},o));
+    return m;
+  }
+  function radialTex(stops,w,h){
+    var cv=document.createElement("canvas");cv.width=w||256;cv.height=h||256;var g=cv.getContext("2d");
+    var gr=g.createRadialGradient(cv.width/2,cv.height/2,0,cv.width/2,cv.height/2,cv.width/2);
+    stops.forEach(function(s){gr.addColorStop(s[0],s[1])});
+    g.fillStyle=gr;g.fillRect(0,0,cv.width,cv.height);
+    var t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;return t;
+  }
+  var NX=16,NY=8;
+  function Grid(){
+    var n=(NX+1)*(NY+1);
+    this.geo=new THREE.BufferGeometry();
+    this.pos=new Float32Array(n*3);this.uv=new Float32Array(n*2);
+    var idx=[];
+    for(var j=0;j<=NX;j++)for(var i=0;i<=NY;i++){var k=j*(NY+1)+i;this.uv[k*2]=j/NX;this.uv[k*2+1]=1-i/NY}
+    for(j=0;j<NX;j++)for(i=0;i<NY;i++){var a=j*(NY+1)+i,b=a+1,c=a+(NY+1),d=c+1;idx.push(a,b,c,b,d,c)}
+    this.geo.setIndex(idx);
+    this.geo.setAttribute("position",new THREE.BufferAttribute(this.pos,3));
+    this.geo.setAttribute("uv",new THREE.BufferAttribute(this.uv,2));
+  }
+  // coloca la hoja: alpha=0 acostada a la derecha, alpha=PI acostada a la izquierda
+  Grid.prototype.setPage=function(alpha,h0,lag){
+    var ds=PW/NX, u=0, w=h0, sa=Math.sin(alpha);
+    for(var j=0;j<=NX;j++){
+      if(j>0){var a=alpha-lag*sa*((j-0.5)/NX); u+=ds*Math.cos(a); w+=ds*Math.sin(a)}
+      for(var i=0;i<=NY;i++){
+        var p=proj(u,i/NY*PD,w),k=(j*(NY+1)+i)*3;
+        this.pos[k]=p[0];this.pos[k+1]=p[1];this.pos[k+2]=0;
+      }
+    }
+    this.geo.attributes.position.needsUpdate=true;
+    this.geo.computeBoundingSphere();
+  };
+  // rectángulo plano sobre la mesa (u0..u1, v0..v1) a altura w
+  Grid.prototype.setFlat=function(u0,u1,v0,v1,w){
+    for(var j=0;j<=NX;j++)for(var i=0;i<=NY;i++){
+      var p=proj(lerp(u0,u1,j/NX),lerp(v0,v1,i/NY),w),k=(j*(NY+1)+i)*3;
+      this.pos[k]=p[0];this.pos[k+1]=p[1];this.pos[k+2]=0;
+    }
+    this.geo.attributes.position.needsUpdate=true;this.geo.computeBoundingSphere();
+  };
+
+  AFRAME.registerComponent("naria-show",{
+    init:function(){
+      var self=this, root=this.el.object3D;
+      this.t=0; this.found=false;
+      this.el.addEventListener("targetFound",function(){self.found=true;UI.found()});
+      this.el.addEventListener("targetLost",function(){self.found=false;UI.lost()});
+      window.NARIA_RESTART=function(){self.t=0};
+      var g=this.g=new THREE.Group();root.add(g);
+
+      // --- libro acostado original (sombras + libro) ---
+      var bt=tex("assets/book_lying.png");
+      var bx0=611.64,by0=717.19,bx1=1321.71,by1=977.34;
+      this.bookSpr=new THREE.Mesh(new THREE.PlaneGeometry((bx1-bx0)/FW,(by1-by0)/FW),mat({map:bt}));
+      this.bookSpr.position.set((bx0+bx1)/2/FW-0.5,(FH/2-(by0+by1)/2)/FW,0);this.bookSpr.renderOrder=1;g.add(this.bookSpr);
+
+      // --- sombra del lado izquierdo (donde caen las hojas) ---
+      var sh=document.createElement("canvas");sh.width=128;sh.height=64;var sg=sh.getContext("2d");
+      sg.filter="blur(6px)";sg.fillStyle="rgba(0,0,0,.85)";sg.fillRect(14,12,100,40);
+      var st=new THREE.CanvasTexture(sh);
+      this.shL=new Grid();this.shLm=new THREE.Mesh(this.shL.geo,mat({map:st,opacity:0}));this.shLm.renderOrder=2;g.add(this.shLm);
+      this.shL.setFlat(-PW-0.08,0.02,-0.06,PD+0.08,0);
+
+      // --- hojas ---
+      var tc=tex("assets/cover.jpg"), p1=tex("assets/pag1.jpg"), p2=tex("assets/pag2.jpg"), p3=tex("assets/pag3.jpg");
+      function page(map,front,back,hR,hL){
+        var gr=new Grid(),f=new THREE.Mesh(gr.geo,mat({map:map,color:front||0xffffff})),b=new THREE.Mesh(gr.geo,back?mat({map:map,color:back}):mat({color:0x1d0f08}));
+        g.add(f);g.add(b);return {g:gr,f:f,b:b,hR:hR,hL:hL,a:-1};
+      }
+      this.stage=page(p3,0xffffff,0,T-0.012,T-0.012); this.stage.g.setPage(0,T-0.012,0); this.stage.f.renderOrder=3; this.stage.b.visible=false;
+      this.pg2=page(p2,0xffffff,0x5a4a40,T-0.008,0.015);
+      this.pg1=page(p1,0xffffff,0x5a4a40,T-0.004,0.010);
+      this.cov=page(tc,0xffffff,0,T,0.005);
+      this.pages=[this.pg2,this.pg1,this.cov]; this.pg2.idx=2;this.pg1.idx=1;this.cov.idx=0;
+      this.pg2.rBase=4;this.pg1.rBase=5;this.cov.rBase=6;
+
+      // --- luces ---
+      var glowT=radialTex([[0,"rgba(255,190,100,1)"],[0.35,"rgba(255,120,30,.55)"],[0.7,"rgba(200,60,10,.15)"],[1,"rgba(120,30,5,0)"]]);
+      this.glowBack=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat({map:glowT,blending:THREE.AdditiveBlending,opacity:0}));this.glowBack.renderOrder=33;g.add(this.glowBack);
+      this.glowPage=new Grid();this.glowPageM=new THREE.Mesh(this.glowPage.geo,mat({map:glowT,blending:THREE.AdditiveBlending,opacity:0}));this.glowPageM.renderOrder=8;g.add(this.glowPageM);
+      this.glowPage.setFlat(-0.35,PW+0.35,-0.5,PD+0.5,T-0.01);
+      var colT=document.createElement("canvas");colT.width=64;colT.height=256;var cg=colT.getContext("2d");
+      var lg=cg.createLinearGradient(0,256,0,0);lg.addColorStop(0,"rgba(255,200,120,.95)");lg.addColorStop(0.5,"rgba(255,150,60,.35)");lg.addColorStop(1,"rgba(255,120,40,0)");
+      cg.fillStyle=lg;cg.fillRect(0,0,64,256);
+      var hg=cg.createLinearGradient(0,0,64,0);hg.addColorStop(0,"rgba(0,0,0,1)");hg.addColorStop(0.5,"rgba(0,0,0,0)");hg.addColorStop(1,"rgba(0,0,0,1)");
+      cg.globalCompositeOperation="destination-out";cg.fillStyle=hg;cg.fillRect(0,0,64,256);
+      var colTx=new THREE.CanvasTexture(colT);colTx.colorSpace=THREE.SRGBColorSpace;
+      this.shaft=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat({map:colTx,blending:THREE.AdditiveBlending,opacity:0}));this.shaft.renderOrder=32;g.add(this.shaft);
+
+      // --- árbol (video con máscara) y chico (a contraluz) ---
+      var vid=this.vid=document.getElementById("tv");
+      var vt=this.vt=new THREE.VideoTexture(vid);vt.minFilter=THREE.LinearFilter;vt.magFilter=THREE.LinearFilter;vt.generateMipmaps=false;
+      this.treeG=new THREE.Group();g.add(this.treeG);
+      this.tree=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat({color:0x070302,alphaMap:vt}));this.tree.renderOrder=40;this.treeG.add(this.tree);
+      this.boyG=new THREE.Group();g.add(this.boyG);
+      var bt2=tex("assets/boy.png");
+      this.boy=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat({map:bt2}));this.boy.renderOrder=41;this.boyG.add(this.boy);
+      this.boyAR=551/1280;
+
+      // --- logo ---
+      this.logoG=new THREE.Group();g.add(this.logoG);
+      this.logoGlow=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat({map:glowT,blending:THREE.AdditiveBlending,opacity:0}));this.logoGlow.renderOrder=34;this.logoG.add(this.logoGlow);
+      this.logo=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat({map:tex("assets/logo.png")}));this.logo.renderOrder=35;this.logoG.add(this.logo);
+
+      // --- chispas ---
+      var NPt=70,pp=new Float32Array(NPt*3);this.NPt=NPt;
+      this.pgeo=new THREE.BufferGeometry();this.pgeo.setAttribute("position",new THREE.BufferAttribute(pp,3));
+      var dot=radialTex([[0,"rgba(255,235,190,1)"],[0.3,"rgba(255,170,70,.8)"],[1,"rgba(255,120,30,0)"]],64,64);
+      this.pmat=new THREE.PointsMaterial({size:11*Math.min(window.devicePixelRatio||1,2),map:dot,transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:false,opacity:0});
+      this.pts=new THREE.Points(this.pgeo,this.pmat);this.pts.renderOrder=39;this.pts.frustumCulled=false;g.add(this.pts);
+      var r=function(i,s){var x=Math.sin(i*127.1+s*311.7)*43758.5453;return x-Math.floor(x)};
+      this.pr=[];for(var i=0;i<NPt;i++)this.pr.push({u:r(i,1)*PW,v:0.15+r(i,2)*0.7,sp:0.25+r(i,3)*0.55,ph:r(i,4)*6.28,t0:r(i,5)*4,sw:0.1+r(i,6)*0.25});
+      this.apply(0);
+    },
+    placePage:function(pc,alpha){
+      var h0=lerp(pc.hR,pc.hL,alpha/PI), lag=0.55;
+      pc.g.setPage(alpha,h0,lag);
+      var front=alpha<PI/2;
+      var inFlight=alpha>0.001&&alpha<PI-0.001;
+      var ro=inFlight?30+pc.idx:(alpha>=PI-0.001?20+pc.idx:pc.rBase);
+      pc.f.visible=front;pc.b.visible=!front;
+      pc.f.renderOrder=ro;pc.b.renderOrder=ro;
+      var sh=1-0.28*Math.sin(alpha);
+      pc.f.material.color.setRGB(sh,sh,sh);
+    },
+    tick:function(time,dt){
+      if(!this.found) return;
+      this.t+=Math.min(dt,100)/1000;
+      this.apply(this.t);
+    },
+    apply:function(t){
+      var self=this;
+      // --- apertura y hojeo ---
+      var aC=eIO(seg(t,0.9,2.5))*PI, a1=eIO(seg(t,3.2,4.2))*PI, a2=eIO(seg(t,4.05,5.05))*PI;
+      this.cov.f.visible=this.cov.b.visible=(t>0.85);
+      this.placePage(this.cov,aC); this.placePage(this.pg1,a1); this.placePage(this.pg2,a2);
+      var op=t>0.85; this.stage.f.visible=op;
+      if(!op){[this.cov,this.pg1,this.pg2].forEach(function(p){p.f.visible=false;p.b.visible=false})}
+      this.shLm.material.opacity=0.55*seg(t,1.6,2.6);
+      // --- luz sobre la página ---
+      var gp=seg(t,0.9,2.6)*0.8+seg(t,5.0,6.4)*0.3; if(t<=0.85)gp=0;
+      this.glowPageM.material.opacity=gp*(0.92+0.08*Math.sin(t*5.3));
+      // --- árbol y chico salen del libro ---
+      var kt=seg(t,5.5,6.7), kb=seg(t,6.0,7.2);
+      var tp=Math.max(0.0001,eBack(kt)), bp=Math.max(0.0001,eBack(kb));
+      this.treeG.visible=kt>0; this.boyG.visible=kb>0;
+      var tH=1.4, treeAR=800/576;
+      this.setBill2(this.treeG,this.tree,1.12,0.30,tH,treeAR,tp,0.62,1.0);
+      var sway=Math.sin(t*1.3)*0.012;
+      this.setBill2(this.boyG,this.boy,0.42,0.80,1.15,this.boyAR,bp,0.5,1.0);
+      this.boyG.rotation.z=sway*(kb>=1?1:0);
+      // --- contraluz: resplandor detrás de ambos ---
+      var gb=seg(t,5.3,7.0);
+      var c=proj(0.78,0.5,T+0.65), sz=proj(0.78,0.5,T+1.45);
+      var gh=Math.abs(c[1]-sz[1])*2*1.15;
+      this.glowBack.position.set(c[0],c[1],0);this.glowBack.scale.set(gh*1.7,gh,1);
+      this.glowBack.material.opacity=0.85*gb*(0.9+0.1*Math.sin(t*3.1));
+      var s0=proj(0.78,0.5,T), s1=proj(0.78,0.5,T+1.8);
+      this.shaft.position.set(s0[0],(s0[1]+s1[1])/2,0);this.shaft.scale.set(Math.abs(s0[1]-s1[1])*0.55,Math.abs(s0[1]-s1[1]),1);
+      this.shaft.material.opacity=0.9*(seg(t,2.0,3.6)*0.45+seg(t,5.2,6.6)*0.55)*(0.9+0.1*Math.sin(t*4.1));
+      // --- logo ---
+      var kl=seg(t,7.2,8.6);
+      this.logoG.visible=kl>0;
+      var lp=eBack(kl), lc=proj(0.78,0.5,T+0.15+eOut(kl)*1.2+0.03*Math.sin(t*1.7)*seg(t,8.6,9.0));
+      var logoW=2.3*hscale(0.5)/FW*Math.max(0.0001,lp), logoH=logoW*(512/1792);
+      this.logoG.position.set(lc[0],lc[1],0);
+      this.logo.scale.set(logoW,logoH,1);
+      this.logoGlow.scale.set(logoW*1.9,logoH*4.2,1);
+      this.logoGlow.material.opacity=0.8*Math.sin(PI*seg(t,7.2,9.0))+0.12;
+      // --- chispas ---
+      var pa=this.pgeo.attributes.position.array, pm=0;
+      for(var i=0;i<this.NPt;i++){
+        var q=this.pr[i], age=(t-0.9-q.t0*0.4); if(age<0){pa[i*3]=9;pa[i*3+1]=9;continue}
+        var life=3.2,aa=age%life,k=aa/life;
+        var w=T+0.1+q.sp*aa*0.8, u=q.u+Math.sin(aa*1.6+q.ph)*q.sw, v=q.v+Math.cos(aa*1.2+q.ph)*0.08;
+        var p=proj(u,v,w);pa[i*3]=p[0];pa[i*3+1]=p[1];pa[i*3+2]=0;
+      }
+      this.pgeo.attributes.position.needsUpdate=true;
+      this.pmat.opacity=seg(t,0.9,2.0)*0.95;
+      // --- video del árbol ---
+      if(this.vid&&kt>0&&this.vid.paused){var pr=this.vid.play();if(pr&&pr.catch)pr.catch(function(){})}
+      if(t>9.6){UI.done();this.placeAgain()}
+    },
+    placeAgain:function(){
+      var sc=this.el.sceneEl, cam=sc.camera; if(!cam||!sc.canvas) return;
+      var p=proj(0.75,1.0,0); var v=new THREE.Vector3(p[0],p[1]-0.035,0);
+      this.g.localToWorld(v); v.project(cam);
+      var r=sc.canvas.getBoundingClientRect(), b=document.getElementById("again");
+      var x=r.left+(v.x*0.5+0.5)*r.width, y=r.top+(-v.y*0.5+0.5)*r.height;
+      x=clamp(x,70,window.innerWidth-70); y=clamp(y,60,window.innerHeight-70);
+      b.style.left=x+"px"; b.style.top=y+"px";
+    },
+    setBill2:function(grp,mesh,u,v,hUnits,ar,pop,ax,ay){
+      var b=proj(u,v,T), top=proj(u,v,T+hUnits), hY=Math.abs(b[1]-top[1])*pop, wY=Math.abs(b[1]-top[1])*ar*pop;
+      grp.position.set(b[0],b[1],0);
+      mesh.scale.set(wY,hY,1);
+      mesh.position.set((0.5-ax)*wY,hY*0.5-(1-ay)*hY,0);
+    }
+  });
+
+  // ---------------- interfaz ----------------
+  var $=function(i){return document.getElementById(i)};
+  var UI={
+    found:function(){$("hint").classList.add("hidden");$("frame").classList.add("hidden")},
+    lost:function(){$("again").classList.add("hidden");if(started){$("hinttxt").textContent="Vuelve a apuntar a la pantalla";$("hint").classList.remove("hidden");$("frame").classList.remove("hidden")}},
+    done:function(){$("again").classList.remove("hidden")}
+  };
+  var started=false;
+  var scene=$("scene");
+  function fail(msg){$("loading").classList.add("hidden");$("start").classList.add("hidden");if(msg)$("errtxt").textContent=msg;$("error").classList.remove("hidden")}
+  scene.addEventListener("arReady",function(){
+    $("loading").classList.add("hidden");
+    $("hint").classList.remove("hidden");$("frame").classList.remove("hidden");started=true;
+  });
+  scene.addEventListener("arError",function(){fail()});
+  $("go").addEventListener("click",function(){
+    // desbloquea la reproducción del video (iOS exige un toque del usuario)
+    try{var v=$("tv");var p=v.play();if(p&&p.then)p.then(function(){v.pause();v.currentTime=0}).catch(function(){})}catch(e){}
+    $("start").classList.add("hidden");$("loading").classList.remove("hidden");
+    var sys=scene.systems["mindar-image-system"];
+    var run=function(){ try{ var p=sys.start(); if(p&&p.catch) p.catch(function(){fail()}); }catch(e){fail()} };
+    if(scene.hasLoaded) run(); else scene.addEventListener("loaded",run);
+  });
+  $("again").addEventListener("click",function(){$("again").classList.add("hidden");window.NARIA_RESTART&&window.NARIA_RESTART()});
+})();
+</script>
+</body>
+</html>
